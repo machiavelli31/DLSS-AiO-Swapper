@@ -39,9 +39,7 @@ function run(args) {
 
 function runElevated(args) {
   return new Promise((resolve) => {
-    const quoted = args.map((a) => `'${String(a).replace(/'/g, "''")}'`).join(',');
-    const command = `$p = Start-Process -FilePath '${helperPath().replace(/'/g, "''")}' -ArgumentList ${quoted} -Verb RunAs -WindowStyle Hidden -Wait -PassThru; exit $p.ExitCode`;
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { windowsHide: true, timeout: 120000 },
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Start-Process -FilePath '${helperPath().replace(/'/g, "''")}' -ArgumentList ${args.map(a => `'${String(a).replace(/'/g, "''")}'`).join(',')} -Verb RunAs -WindowStyle Hidden -Wait -PassThru; exit $LASTEXITCODE`], { windowsHide: true, timeout: 120000 },
       (error) => resolve(!error));
   });
 }

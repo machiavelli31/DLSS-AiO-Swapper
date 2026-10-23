@@ -15,7 +15,7 @@ function safePath(root, rel) {
   if (typeof rel !== 'string' || !rel || path.isAbsolute(rel) || rel.includes(':')) throw error('errUnsafeTarget');
   const dest = path.resolve(root, rel);
   const relative = path.relative(path.resolve(root), dest);
-  if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) throw error('errUnsafeTarget');
+  if (!relative || relative === '..' || relative.startsWith('..' + path.sep)) throw error('errUnsafeTarget');
   // Refuse junctions/symlinks, including the selected root. A lexical prefix
   // alone does not guarantee that a write stays in the selected game folder.
   let item = dest;

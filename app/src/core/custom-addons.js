@@ -60,7 +60,7 @@ async function importFile(userData, file) {
   try {
     if (/\.zip$/i.test(file)) {
       tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aio-addon-'));
-      await extract(file, { dir: tmp });
+      await extract(file, { dir: tmp, filter: (p) => !path.isAbsolute(p) && !p.startsWith('..') && !p.includes('/') && !p.includes('\\') });
       const hits = findAddon(tmp);
       if (!hits.length) throw fail('caErrNoAddon', 'The archive contains no renodx-dlss5.addon64 or renodx-dlss.addon64.');
       if (hits.length > 1) throw fail('caErrTwoAddons', 'The archive contains more than one add-on; import the one you want on its own.');

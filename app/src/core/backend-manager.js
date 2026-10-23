@@ -23,6 +23,7 @@ function profileFile(gameDir, exePath, api, route) {
   // from it fails the install with nothing but "Invalid route".
   if (!['native', 'feeder', 'optiscaler', 'renodx', 'combo'].includes(route)) throw new Error('Invalid route');
   const id = crypto.createHash('sha256').update(`${path.relative(gameDir, exePath).toLowerCase()}|${api}`).digest('hex').slice(0, 24);
+  if (!/^[a-f0-9]{24}$/.test(id)) throw new Error('Invalid profile ID');
   return journal.safePath(gameDir, `_DLSS5_Backup/.profiles/${id}-${route}.json`);
 }
 // What a settings file may be called. ReShade lets a preset be named anything,
@@ -61,6 +62,9 @@ function loadProfile(config) {
   if (profile.version !== 1 || !profile.files || typeof profile.files !== 'object') throw new Error('Invalid backend profile');
   const files = {};
   for (const [rel, text] of Object.entries(profile.files)) {
+    if (path.isAbsolute(rel) || rel.startsWith('..') || rel.includes('_DLSS5_Backup')) {
+      throw new Error('Invalid backend profile');
+    }
     journal.safePath(config.gameDir, rel);
     // A path escaping the game, a non-string, an oversized blob or anything
     // aimed at the backup folder is refused: that is tampering, not a setting.
