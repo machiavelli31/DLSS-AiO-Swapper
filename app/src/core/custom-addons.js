@@ -23,6 +23,12 @@ const NAMES = Object.freeze({
   'renodx-dlss.addon64': 'RenoDX DLSS Tool (ShortFuse, multipass)'
 });
 
+function resolveAddonName(filename) {
+  const name = path.basename(filename).toLowerCase();
+  if (name === 'dlss5-nr(9).addon64') return 'renodx-dlss5.addon64';
+  return Object.hasOwn(NAMES, name) ? name : null;
+}
+
 const fail = (code, message, params = {}) => Object.assign(new Error(message), { code, params });
 const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const root = (userData) => path.join(userData, 'custom-addons');
@@ -66,8 +72,8 @@ async function importFile(userData, file) {
       if (hits.length > 1) throw fail('caErrTwoAddons', 'The archive contains more than one add-on; import the one you want on its own.');
       src = hits[0];
     }
-    const name = path.basename(src).toLowerCase();
-    if (!Object.hasOwn(NAMES, name)) throw fail('caErrName', 'Only renodx-dlss5.addon64 or renodx-dlss.addon64 can be imported.');
+    const name = resolveAddonName(src);
+    if (!name) throw fail('caErrName', 'Only renodx-dlss5.addon64 or renodx-dlss.addon64 can be imported.');
     const head = Buffer.alloc(2);
     const fd = fs.openSync(src, 'r'); fs.readSync(fd, head, 0, 2, 0); fs.closeSync(fd);
     if (head.toString('latin1') !== 'MZ' || pe.getBitness(src) !== 64) throw fail('caErrNotAddon', 'This is not a 64-bit ReShade add-on.');
@@ -100,4 +106,4 @@ function knownHashes(userData) {
   return out;
 }
 
-module.exports = { NAMES, importFile, knownHashes, root, defenderScan };
+module.exports = { NAMES, importFile, knownHashes, root, defenderScan, resolveAddonName };
