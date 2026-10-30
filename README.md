@@ -12,6 +12,11 @@
   <a href="../../releases/latest"><img alt="Download" src="https://img.shields.io/github/v/release/machiavelli31/DLSS-AiO-Swapper?label=download&style=for-the-badge&color=a855f7"></a>
   <a href="../../releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/machiavelli31/DLSS-AiO-Swapper/total?style=for-the-badge&color=22d3ee&label=downloads&cacheSeconds=3600"></a>
   <a href="../../stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/machiavelli31/DLSS-AiO-Swapper?style=for-the-badge&color=f5c542"></a>
+  <a href="https://www.reddit.com/r/DLSS/comments/1xb01f8/dlss_aio_swapper_one_click_for_dlss_5_incl_the/"><img alt="Discuss on Reddit" src="https://img.shields.io/badge/discuss-r%2FDLSS-ff4500?style=for-the-badge&logo=reddit&logoColor=white"></a>
+</p>
+
+<p align="center">
+  💬 <b>Questions, feedback, game reports?</b> Join the thread on <a href="https://www.reddit.com/r/DLSS/comments/1xb01f8/dlss_aio_swapper_one_click_for_dlss_5_incl_the/">r/DLSS</a> – or open an <a href="../../issues">issue</a> for bugs.
 </p>
 
 <p align="center">
