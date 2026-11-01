@@ -843,11 +843,13 @@ async function applySwap(config, onLog) {
   await retireOldShaderCompiler(manifest, gameDir, exeDir, log);
 
   const payloadByName = new Map(source.payload.map((f) => [f.name.toLowerCase(), f]));
-  const existing = scan.dlssFiles.filter(file => /^nvngx_dlss(?:nr)?\.dll$/i.test(file.name));
+  const existing = scan.dlssFiles.filter(file => /^nvngx_dlss(?:nr|d|g)?\.dll$/i.test(file.name));
 
   // Streamline plugins/interposer belong to the game's SDK integration; a
-  // newer DLL is not necessarily a drop-in ABI match. Leave SL/FG/RR intact.
-  // Upgrade SR/NR only, including Unreal's nested ThirdParty path, and never
+  // newer DLL is not necessarily a drop-in ABI match, so sl.* stays as the
+  // game shipped it. The NGX snippets are drop-in within the 310 line:
+  // upgrade SR, RR (dlssd), FG (dlssg) and NR to the payload's verified
+  // NVIDIA copies, including Unreal's nested ThirdParty path, and never
   // copy the x64 payload over an x86 tool or secondary executable's runtime.
   for (const file of existing) {
     const replacement = payloadByName.get(file.name.toLowerCase());

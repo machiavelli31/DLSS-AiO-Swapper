@@ -1,7 +1,7 @@
 {
   "name": "dlss5-swapper",
   "productName": "DLSS AiO Swapper by Machiavelli",
-  "version": "3.0.13",
+  "version": "3.0.14",
   "description": "Installs and manages DLSS 5 Neural Rendering in your games and sets NVIDIA DLSS driver settings per game.",
   "main": "main.js",
   "author": "Machiavelli (machiavelli31)",

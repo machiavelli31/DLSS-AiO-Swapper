@@ -54,7 +54,7 @@ const F5 = Object.freeze({
   licenses: Object.freeze(['DirectX_LICENSE.txt', 'FidelityFX_v2_LICENSE.md', 'PeripheralWarp_LICENSE.txt', 'RenoDX_ATTRIBUTION.txt', 'XeSS_LICENSE.txt'])
 });
 const PORT = Object.freeze({
-  url: 'https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass/releases/download/v0.1.34/Optional-Vendor-Neutral-DLSS5-Forwarder.zip',
+  url: 'https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass/releases/download/v0.1.35.1/Optional-Vendor-Neutral-DLSS5-Forwarder.zip',
   sha256: '74a24eb103ef05a54ede6598d70f4c7093a2c683f59c40972d7a635e36ce8ae9',
   files: Object.freeze({
     'nvngx.dll_dlssnr.dll': '30aefc7aa19399c2905bfa64f69cca7eb1574135425d905c0e2f052fc523099c',
@@ -66,10 +66,10 @@ const PORT = Object.freeze({
   minModel: '310.9'
 });
 const F5_RELEASE = Object.freeze({
-  version: '0.1.34-f5',
-  label: '0.1.34 - F5 (janblade)',
-  url: 'https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass/releases/download/v0.1.34/OptiScaler-DLSSNR-F5-v0.1.34-with-dlss-fg.zip',
-  sha256: 'f1f0d8777fb337f8a89451b652fdc09ecd6c8b76ab96b20f1e4452eb5eefc11a',
+  version: '0.1.35.1-f5',
+  label: '0.1.35.1 - F5 (janblade)',
+  url: 'https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass/releases/download/v0.1.35.1/OptiScaler-DLSSNR-F5-v0.1.35.1-with-dlss-fg.zip',
+  sha256: '29532c7dff93a7171e5825238fc0bdd0cfb9828cde7d4fcef5608537d589dc23',
   layout: F5,
   port: PORT
 });

@@ -21,12 +21,15 @@ const CONSUMER = Object.freeze({
   sha256: 'dcd93881e976ad033d83c2bb01f4bc3e4ddc59c15fe0dd4ca165bc5fc7d1ac68'
 });
 // ShortFuse's DLSS Tool build, carrying DirectNeuralRenderingPassCount (#251).
+// 26.1016 adds its own model choice (DirectNeuralRenderingPreset: Default /
+// Preset A / Preset B), Tone and Character Intensity and a host transport for
+// D3D9 / OpenGL.
 const MULTIPASS = Object.freeze({
-  version: 'SF 26.1003.2350',
+  version: 'SF 26.1016.1304',
   file: 'renodx-dlss.addon64',
-  archive: Object.freeze(['renodx-dlss_SF_26.1003.2350.zip', 'https://github.com/RankFTW/rhi-repo/releases/download/renodx-dlss-SF-26.1003.2350/renodx-dlss_SF_26.1003.2350.zip', '34ef92d6742bf6d05df42ff81c04b70f5138b0a0a970a93f1a04295ac83f7f0f']),
-  size: 3010048,
-  sha256: '1310119c87e4ab5ad0af41511411bd4608ff3c3030a29196ae0e4bba32c84585'
+  archive: Object.freeze(['renodx-dlss_SF_26.1016.1304.zip', 'https://github.com/RankFTW/rhi-repo/releases/download/renodx-dlss-SF-26.1016.1304/renodx-dlss_SF_26.1016.1304.zip', 'bc4ec58d31565f6919c4e0c1aad8d8ea6443199e12b54f9e019b2ffd8afaaabf']),
+  size: 3333632,
+  sha256: 'a8fd34b531fd22c3dbd008ed8fd3cbfcca2fb451729e19cd1fc2e4c85b5068d4'
 });
 // Every neural evaluate faults inside NVIDIA's own NGX runtime on driver
 // 616.64 and newer with the 4.x consumers - measured upstream across three
@@ -46,6 +49,7 @@ const FAULTING = Object.freeze({
 const SHIPPED = Object.freeze([
   CONSUMER.sha256,
   MULTIPASS.sha256,
+  '1310119c87e4ab5ad0af41511411bd4608ff3c3030a29196ae0e4bba32c84585', // DLSS Tool SF 26.1003.2350 (3.0.5 - 3.0.13)
   '342341f669f1d64e0c70c8593a07a2fab5075e073dfae97c331c9a6776260a0a' // RenoDX DLSS5 6.5.3 (3.0.0 - 3.0.4)
 ]);
 module.exports = { CONSUMER, MULTIPASS, FAULTING, SHIPPED, faults: (sha256) => Boolean(FAULTING[String(sha256).toLowerCase()]) };

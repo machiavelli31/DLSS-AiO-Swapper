@@ -1882,7 +1882,20 @@ function updatableSources() {
   }
   const nr = (s.payload || []).find((f) => f.name.toLowerCase() === 'nvngx_dlssnr.dll');
   if (nr && fs.existsSync(nr.path)) byName.set('nvngx_dlssnr.dll', nr.path);
+  for (const f of s.payload || []) {
+    if (DLSS_SNIPPET.test(f.name) && fs.existsSync(f.path)) byName.set(f.name.toLowerCase(), f.path);
+  }
   return byName;
+}
+// NVIDIA's SR / RR / FG snippets: upgraded in every managed game, also where
+// the game's own copy was never touched by an earlier install (those are then
+// added to the manifest, so Restore brings the game's original back).
+const DLSS_SNIPPET = /^nvngx_dlss[dg]?\.dll$/i;
+function newerSnippet(src, target) {
+  try {
+    if (pe.getBitness(src) !== pe.getBitness(target)) return false;
+    return compareVersions(pe.getFileVersion(src), pe.getFileVersion(target)) > 0;
+  } catch { return false; }
 }
 // Only files the app itself put there may be swapped: a built-in build it
 // shipped (now or before) or an own build imported through the app. A file
@@ -1890,6 +1903,7 @@ function updatableSources() {
 // alone, so the button can never downgrade it. The NR model is only replaced
 // by a newer version, never an older one.
 function replaceable(name, target, src) {
+  if (DLSS_SNIPPET.test(name)) return newerSnippet(src, target);
   if (name === 'nvngx_dlssnr.dll') {
     // Switching between NVIDIA's model and the community build for RTX 20/30/40
     // goes both ways, whatever the version numbers say.
@@ -1921,6 +1935,20 @@ function gameUpdates(dir, sources) {
     seen.add(target.toLowerCase());
     try { if (fileSha(target) !== fileSha(src) && replaceable(path.basename(rel).toLowerCase(), target, src)) out.push({ rel, src, target }); } catch { /* unreadable: leave it */ }
   }
+  // The game's own SR / RR / FG beside the exe that no install replaced yet.
+  try {
+    const exeDir = manifest.game && manifest.game.exe ? path.dirname(journal.safePath(dir, manifest.game.exe)) : null;
+    if (exeDir && manifest.route !== 'optiscaler') {
+      for (const name of fs.readdirSync(exeDir)) {
+        if (!DLSS_SNIPPET.test(name)) continue;
+        const src = sources.get(name.toLowerCase());
+        const target = path.join(exeDir, name);
+        if (!src || seen.has(target.toLowerCase())) continue;
+        seen.add(target.toLowerCase());
+        if (newerSnippet(src, target)) out.push({ rel: path.relative(dir, target), src, target, track: true });
+      }
+    }
+  } catch { /* unreadable folder: leave it */ }
   return out.length ? { manifest, files: out } : null;
 }
 ipcMain.handle('update-all-games', (_event, dryRun) => exclusiveMutation(async () => {
@@ -1943,12 +1971,19 @@ ipcMain.handle('update-all-games', (_event, dryRun) => exclusiveMutation(async (
     }
     const done = [];
     try {
+      let tracked = false;
       for (const f of g.plan.files) {
-        const tmp = f.target + '.aio-update';
-        fs.copyFileSync(f.src, tmp);
-        fs.renameSync(tmp, f.target);
+        if (f.track) {
+          await copyTracked(g.plan.manifest, g.dir, f.src, f.target, { oldVersion: pe.getFileVersion(f.target), newVersion: pe.getFileVersion(f.src) });
+          tracked = true;
+        } else {
+          const tmp = f.target + '.aio-update';
+          fs.copyFileSync(f.src, tmp);
+          fs.renameSync(tmp, f.target);
+        }
         done.push(path.basename(f.rel));
       }
+      if (tracked) await saveActiveManifest(g.dir, g.plan.manifest);
       results.push({ name: g.name, ok: true, files: done });
     } catch (error) {
       results.push({ name: g.name, ok: false, reason: error.message, files: done });
