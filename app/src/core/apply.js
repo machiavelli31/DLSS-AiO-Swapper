@@ -678,7 +678,7 @@ async function enableAddonInIni(exeDir, addonName, log, gameDir, manifest) {
 // so Restore puts the person's own build back - and one this app left there
 // itself is simply removed.
 // lecram v11 is called dlss5-nr.addon64 and is the same kind of consumer.
-const RENODX_CONSUMER = /^(?:renodx-dlss.*|dlss5-nr)\.addon(?:64|32)$/i;
+const RENODX_CONSUMER = /^(?:renodx-dlss.*|dlss5-nr|gitc-uplift)\.addon(?:64|32)$/i;
 async function setAsideRivalConsumers(manifest, gameDir, dir, keep, log) {
   let names = [];
   try { names = fs.readdirSync(dir); } catch { return; }
@@ -804,9 +804,87 @@ async function applyLecram12(config, log) {
   return manifest;
 }
 
+// GITC Uplift (ghostinthecamera): ReShade of the game's bitness under the name
+// its API loads, Uplift's add-on of that bitness plus its 64-bit helper beside
+// the exe, its two shaders, and NVIDIA's NR runtime INSIDE GITC-Uplift\ - never
+// beside the exe, where NVIDIA's DLSS on an RTX 50 could load it first.
+// Any other NR add-on in the folder is set aside (Uplift stands down beside one).
+async function applyUplift(config, log) {
+  const { gameDir, exePath, api, source, reshadeSetup, setupRunner, vulkanLayerTarget, registryRunner, reshadeProxy } = config;
+  const bitness = config.bitness || pe.getBitness(exePath);
+  const exeDir = path.dirname(exePath);
+  const up = source.uplift;
+  if (!canWrite(exeDir)) throw fail('errNoWriteAccess');
+  if (!source.hasNeuralRendering) throw fail('errNoNeuralRuntime');
+  if (!up || !fs.existsSync(up.addon64) || !fs.existsSync(up.addon32) || !fs.existsSync(up.helper)) throw fail('errUpliftDownload');
+  if (!['dxgi', 'd3d9', 'd3d10', 'opengl', 'vulkan'].includes(api) || (api === 'vulkan' && bitness !== 64)) {
+    throw fail('errFeederApiUnsupported', { api, bitness });
+  }
+
+  const manifest = beginManifest(gameDir, exePath, api);
+  manifest.route = 'uplift';
+  manifest.game.bitness = bitness;
+  manifest.game.apiLabel = config.apiLabel;
+  manifest.uplift = { version: up.version };
+  await retireOldShaderCompiler(manifest, gameDir, exeDir, log);
+
+  const neural = source.payload.find((file) => file.name.toLowerCase() === 'nvngx_dlssnr.dll');
+  if (!neural) throw fail('errNoNeuralRuntime');
+
+  // 1) ReShade in the game (a global layer for Vulkan, as on the Feeder route).
+  if (api === 'vulkan') {
+    if (!source.feeder || !source.feeder.vulkanOk || !vulkanLayerTarget) throw fail('errVulkanSupportMissing');
+    manifest.vulkanLayer = await vulkanLayer.register({
+      sourceDir: source.feeder.vulkanLayerDir, targetDir: vulkanLayerTarget, gameDir, bitness, runner: registryRunner
+    });
+    await saveActiveManifest(gameDir, manifest);
+    log('vulkanLayerInstalled', { global: true, manifest: manifest.vulkanLayer.manifest });
+  } else {
+    await installReShadeAt({
+      gameDir, exePath, api: api === 'd3d10' ? 'dxgi' : api, manifest, reshadeSetup, setupRunner, log,
+      gameInstance: true, bitness, source, reshadeProxy
+    });
+  }
+
+  // 2) The add-on of the game's bitness and the helper; no other NR add-on.
+  const addonName = bitness === 32 ? 'gitc-uplift.addon32' : 'gitc-uplift.addon64';
+  await setAsideRivalConsumers(manifest, gameDir, exeDir, addonName, log);
+  for (const stale of ['dlss5-feed.addon64', 'dlss5-feed.addon32']) {
+    if (fs.existsSync(path.join(exeDir, stale))) log('feederLeftover', { name: stale });
+  }
+  const addonRel = await copyTracked(manifest, gameDir, bitness === 32 ? up.addon32 : up.addon64, path.join(exeDir, addonName), { kind: 'addon' });
+  log('addonInstalled', { rel: addonRel, name: addonName });
+  await copyTracked(manifest, gameDir, up.helper, path.join(exeDir, 'gitc-uplift-helper64.exe'), { kind: 'uplift' });
+
+  // 3) NVIDIA's runtime in GITC-Uplift\ next to the add-on.
+  const runtimeRel = await copyTracked(manifest, gameDir, neural.path, path.join(exeDir, 'GITC-Uplift', 'nvngx_dlssnr.dll'), { kind: 'runtime', newVersion: neural.version });
+  log('added', { rel: runtimeRel, version: neural.version });
+
+  // 4) Its shaders, and ReShade pointed at them.
+  for (const shader of up.shaders) {
+    await copyTracked(manifest, gameDir, shader, path.join(exeDir, 'reshade-shaders', 'Shaders', path.basename(shader)), { kind: 'uplift' });
+  }
+  if (up.license && fs.existsSync(up.license)) {
+    await copyTracked(manifest, gameDir, up.license, path.join(exeDir, 'reshade-shaders', 'Licenses', 'GITC-Uplift-LICENSE.txt'), { kind: 'license' });
+  }
+  const iniPath = path.join(exeDir, 'ReShade.ini');
+  let ini = feederConfig.readText(iniPath);
+  ini = feederConfig.setIni(ini, 'GENERAL', 'EffectSearchPaths', feederConfig.configureSearchPath(
+    feederConfig.getIni(ini, 'GENERAL', 'EffectSearchPaths'), '.\\reshade-shaders\\Shaders\\**'));
+  ini = feederConfig.setIni(ini, 'ADDON', 'AddonPath', '.\\');
+  await writeTracked(manifest, gameDir, iniPath, ini, { kind: 'config' });
+
+  await enableAddonInIni(exeDir, addonName, log, gameDir, manifest);
+  await saveActiveManifest(gameDir, manifest);
+  log('upliftReady', { version: up.version });
+  log('applyDone');
+  return manifest;
+}
+
 async function applySwap(config, onLog) {
   const log = (code, params) => onLog && onLog({ code, params: params || {} });
   if (config.route === 'lecram12') return applyLecram12(config, log);
+  if (config.route === 'uplift') return applyUplift(config, log);
   const bitness = config.bitness || pe.getBitness(config.exePath);
   if (bitness === 32 || config.route === 'feeder') return applyFeeder(config, log);
   const {
@@ -956,6 +1034,19 @@ async function applySwap(config, onLog) {
     // better for itself. A game installed this way gets the add-on exactly as
     // its author shipped it.
     log('addonInstalled', { name: addonName });
+  }
+
+  // 3b) ShortFuse's DLSS Tool has no on/off key of its own; our small
+  //     companion add-on gives it one (F6). Only on the plain ShortFuse
+  //     route - in the combo, F6 already belongs to lecram's add-on.
+  if (multipass && !combo) {
+    const toggle = require('./sf-toggle').addonPath();
+    if (toggle) {
+      const dest = path.join(exeDir, require('./sf-toggle').FILE);
+      if (!fs.existsSync(dest)) rememberAdded(manifest, path.relative(gameDir, dest));
+      await copyTracked(manifest, gameDir, toggle, dest, { kind: 'addon' });
+      log('sfToggleInstalled', { key: 'F6' });
+    }
   }
 
   // 4) ReShade - the add-on is loaded by ReShade, so without it nothing runs.
@@ -1197,6 +1288,22 @@ function recoverableManifest(gameDir) {
 // Restore left half a gigabyte behind. Only these exact names are removed, and
 // the runtime folder only when it holds nothing but the runtime copies.
 async function removeNrLeftovers(gameDir, manifest, log) {
+  // GITC Uplift: once its tracked files are gone, its runtime folder may still
+  // hold what it wrote itself (logs, settings) - then the folder goes too.
+  for (const entry of manifest.added || []) {
+    const rel = typeof entry === 'string' ? entry : entry && entry.rel;
+    if (!rel || !/^gitc-uplift\.addon(?:64|32)$/i.test(path.basename(rel))) continue;
+    const folder = path.join(gameDir, path.dirname(rel), 'GITC-Uplift');
+    const onlyOutput = (dir) => {
+      try {
+        return fs.readdirSync(dir, { withFileTypes: true }).every((e) => e.isDirectory()
+          ? onlyOutput(path.join(dir, e.name)) : /\.(log|ini|txt|json|dmp)$/i.test(e.name));
+      } catch { return false; }
+    };
+    if (fs.existsSync(folder) && onlyOutput(folder)) {
+      try { await fs.promises.rm(folder, { recursive: true, force: true }); log('deleted', { rel: path.relative(gameDir, folder) }); } catch {}
+    }
+  }
   const dirs = new Set();
   for (const entry of manifest.added || []) {
     const rel = typeof entry === 'string' ? entry : entry && entry.rel;

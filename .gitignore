@@ -10,6 +10,8 @@ payload/
 *.dll
 *.addon64
 *.addon32
+# our own add-on (source in tools/aio-sf-toggle)
+!tools/aio-sf-toggle/aio-sf-toggle.addon64
 ReShade_Setup_*.exe
 
 # Build-Artefakte

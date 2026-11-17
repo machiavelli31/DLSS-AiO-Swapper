@@ -1,7 +1,7 @@
 {
   "name": "dlss-aio-build",
   "private": true,
-  "version": "3.0.14",
+  "version": "3.0.15",
   "description": "Build workspace for DLSS AiO Swapper by Machiavelli (the app itself lives in ./app)",
   "author": "Machiavelli (machiavelli31)",
   "license": "MIT",
@@ -40,6 +40,10 @@
       {
         "from": "app/THIRD_PARTY_NOTICES.md",
         "to": "THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "tools/aio-sf-toggle/aio-sf-toggle.addon64",
+        "to": "aio-sf-toggle.addon64"
       }
     ],
     "win": {

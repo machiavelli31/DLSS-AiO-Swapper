@@ -37,12 +37,26 @@
     if (api === 'vulkan') return bits === 64;
     return false;
   }
+  // GITC Uplift (free, MIT): ReShade add-on that finds depth and motion itself,
+  // D3D9-12, OpenGL, 64- and 32-bit; Vulkan here only 64-bit (the app's
+  // global layer). No emulators. Offered after the Feeder, never recommended
+  // until it has been checked in a game.
+  function upliftOk(target, api) {
+    if (!target || target.emulator || ![32, 64].includes(target.bitness)) return false;
+    if (api === 'vulkan') return target.bitness === 64;
+    return ['dxgi', 'd3d9', 'd3d10', 'opengl'].includes(api);
+  }
   function routesFor(target, api = target && target.api) {
     if (vendorNeutral) return !optiReason(target, api) ? ['optiscaler'] : [];
     const routes = baseRoutes(target, api);
-    if (!lecram12Ok(target, api)) return routes;
-    const at = routes.indexOf('native');
-    routes.splice(at === -1 ? 0 : at + 1, 0, 'lecram12');
+    if (lecram12Ok(target, api)) {
+      const at = routes.indexOf('native');
+      routes.splice(at === -1 ? 0 : at + 1, 0, 'lecram12');
+    }
+    if (upliftOk(target, api)) {
+      const feeder = routes.indexOf('feeder');
+      routes.splice(feeder === -1 ? routes.length : feeder + 1, 0, 'uplift');
+    }
     return routes;
   }
   function baseRoutes(target, api) {
@@ -83,7 +97,7 @@
     if (vendorNeutral) return routes[0] || null;
     const nativeDlss = nativeDlssPresent(scan);
     const installed = scan.install && scan.install.route;
-    const wanted = installed === 'feeder' || installed === 'lecram12'
+    const wanted = installed === 'feeder' || installed === 'lecram12' || installed === 'uplift'
       ? installed : nativeDlss ? 'native' : routes.includes('lecram12') ? 'lecram12' : 'feeder';
     return routes.includes(wanted) ? wanted : (routes[0] || null);
   }

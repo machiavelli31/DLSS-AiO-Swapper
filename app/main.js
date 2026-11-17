@@ -44,6 +44,8 @@ const featureI18n = require('./src/shared/feature-i18n');
 const featureText = (key, ...args) => featureI18n.t(loadState().lang, key, ...args);
 const vulkanLayer = require('./src/core/vulkan-layer');
 const { HistoryStore, knownFolders, fromManifests } = require('./src/core/history');
+const lecramRename = require('./src/core/lecram-rename');
+const uplift = require('./src/core/uplift');
 const gameMenu = require('./src/core/game-menu');
 let historyStore;
 const history = () => historyStore || (historyStore = new HistoryStore(path.join(app.getPath('userData'), 'history.jsonl')));
@@ -288,7 +290,12 @@ function payload(raw) {
         // v12.6+ imported with its host: the "no Feeder" route opens up.
         probe.lecram12 = customAddons.lecramHost(own['renodx-dlss5.addon64']);
         installRoutes.setLecram12(probe.lecram12 ? { has32: Boolean(probe.lecram12.addon32) } : null);
-        if (own['renodx-dlss.addon64']) probe.multipassAddon = own['renodx-dlss.addon64'];
+        // An imported ShortFuse build replaces the built-in one; the routes read
+        // it from feeder.multipassAddon, so it has to land there too.
+        if (own['renodx-dlss.addon64']) {
+          probe.multipassAddon = own['renodx-dlss.addon64'];
+          if (probe.feeder) probe.feeder = { ...probe.feeder, multipassAddon: own['renodx-dlss.addon64'] };
+        }
       }
       return { source: probe, reshadeSetup: setup ? path.join(dir, setup) : null };
     }
@@ -1693,7 +1700,7 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
   // The ReShade and Feeder routes both drive the RenoDX neural consumer, which
   // upstream has measured faulting inside NVIDIA's runtime on a known driver
   // range. Say so before the work starts; it never stops the install.
-  if (route === 'native' || route === 'feeder' || route === 'combo' || route === 'lecram12') {
+  if (route === 'native' || route === 'feeder' || route === 'combo' || route === 'lecram12' || route === 'uplift') {
     // Advice only: nothing about reading the driver may decide whether an
     // install runs.
     try {
@@ -1800,6 +1807,13 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
     }
   }
 
+  // GITC Uplift is fetched from its author's release on first use (pinned).
+  if (route === 'uplift') {
+    send({ code: 'upliftDownloading', params: {} });
+    try { p.source.uplift = await uplift.ensure(app.getPath('userData')); }
+    catch (err) { return { ok: false, code: 'errUpliftDownload', message: err.message }; }
+  }
+
   if (route === 'feeder') {
     try {
       p.source.feeder.lumeniteRoot = await ensureLumenite(app.getPath('userData'));
@@ -1875,13 +1889,26 @@ function updatableSources() {
   const s = chosen.source;
   const byName = new Map();
   if (s.addon && fs.existsSync(s.addon)) byName.set(path.basename(s.addon).toLowerCase(), s.addon);
-  if (s.multipassAddon && fs.existsSync(s.multipassAddon)) byName.set('renodx-dlss.addon64', s.multipassAddon);
+  // The built-in ShortFuse build lives at feeder.multipassAddon; only an
+  // imported one was ever set at the top level, so Update installed never
+  // rolled out a new built-in ShortFuse build.
+  const multipass = (s.feeder && s.feeder.multipassAddon) || s.multipassAddon;
+  if (multipass && fs.existsSync(multipass)) byName.set('renodx-dlss.addon64', multipass);
+  const sfToggle = require('./src/core/sf-toggle').addonPath();
+  if (sfToggle) byName.set('aio-sf-toggle.addon64', sfToggle);
   if (s.lecram12) {
     if (s.lecram12.addon32) byName.set('dlss5-nr.addon32', s.lecram12.addon32);
     byName.set('nr-host64.exe', s.lecram12.hostExe);
   }
   const nr = (s.payload || []).find((f) => f.name.toLowerCase() === 'nvngx_dlssnr.dll');
   if (nr && fs.existsSync(nr.path)) byName.set('nvngx_dlssnr.dll', nr.path);
+  // GITC Uplift: only when its pinned release is already downloaded.
+  try {
+    const up = uplift.layout(path.join(app.getPath('userData'), 'components', `GITC-Uplift-${uplift.RELEASE.version}`, 'x'));
+    for (const [name, file] of [[uplift.ADDON64, up.addon64], [uplift.ADDON32, up.addon32], [uplift.HELPER, up.helper]]) {
+      if (fs.existsSync(file)) byName.set(name, file);
+    }
+  } catch { /* not downloaded */ }
   for (const f of s.payload || []) {
     if (DLSS_SNIPPET.test(f.name) && fs.existsSync(f.path)) byName.set(f.name.toLowerCase(), f.path);
   }
@@ -1904,6 +1931,8 @@ function newerSnippet(src, target) {
 // by a newer version, never an older one.
 function replaceable(name, target, src) {
   if (DLSS_SNIPPET.test(name)) return newerSnippet(src, target);
+  if (name === 'aio-sf-toggle.addon64') return true; // our own add-on, always ours to update
+  if (uplift.NAMES.includes(name)) { try { return uplift.SHIPPED.includes(fileSha(target)); } catch { return false; } }
   if (name === 'nvngx_dlssnr.dll') {
     // Switching between NVIDIA's model and the community build for RTX 20/30/40
     // goes both ways, whatever the version numbers say.
@@ -1927,6 +1956,16 @@ function gameUpdates(dir, sources) {
   const seen = new Set();
   for (const rel of rels) {
     if (typeof rel !== 'string') continue;
+    // A game on Lecram's old file name gets an imported v11+ under its new one.
+    const renamed = lecramRename.plan(rel, sources, manifest.route);
+    if (renamed) {
+      let oldTarget;
+      try { oldTarget = journal.safePath(dir, rel); } catch { continue; }
+      if (seen.has(oldTarget.toLowerCase()) || !fs.existsSync(oldTarget)) continue;
+      seen.add(oldTarget.toLowerCase());
+      try { if (replaceable(path.basename(rel).toLowerCase(), oldTarget, renamed.src)) out.push({ rel, src: renamed.src, target: oldTarget, newRel: renamed.newRel }); } catch { /* unreadable: leave it */ }
+      continue;
+    }
     const src = sources.get(path.basename(rel).toLowerCase());
     if (!src) continue;
     let target;
@@ -1959,7 +1998,7 @@ ipcMain.handle('update-all-games', (_event, dryRun) => exclusiveMutation(async (
     const plan = gameUpdates(game.dir, sources);
     if (plan) games.push({ dir: game.dir, name: game.name, plan });
   }
-  if (dryRun) return { ok: true, games: games.map((g) => ({ dir: g.dir, name: g.name, files: g.plan.files.map((f) => path.basename(f.rel)) })) };
+  if (dryRun) return { ok: true, games: games.map((g) => ({ dir: g.dir, name: g.name, files: g.plan.files.map((f) => path.basename(f.newRel || f.rel)) })) };
   const results = [];
   for (const g of games) {
     try {
@@ -1973,12 +2012,19 @@ ipcMain.handle('update-all-games', (_event, dryRun) => exclusiveMutation(async (
     try {
       let tracked = false;
       for (const f of g.plan.files) {
+        if (f.newRel) {
+          lecramRename.apply(g.plan.manifest, g.dir, f, journal.safePath);
+          tracked = true;
+          done.push(path.basename(f.newRel));
+          continue;
+        }
         if (f.track) {
           await copyTracked(g.plan.manifest, g.dir, f.src, f.target, { oldVersion: pe.getFileVersion(f.target), newVersion: pe.getFileVersion(f.src) });
           tracked = true;
         } else {
           const tmp = f.target + '.aio-update';
           fs.copyFileSync(f.src, tmp);
+          try { fs.chmodSync(tmp, 0o666); fs.chmodSync(f.target, 0o666); } catch { /* best effort */ }
           fs.renameSync(tmp, f.target);
         }
         done.push(path.basename(f.rel));

@@ -13,7 +13,7 @@ const compatibility = require('./compatibility');
 // are not part of any route. A route switch restores the old route's files
 // first, which took them away with it - an HDR mod vanished when Witcher went
 // from one Lecram route to another. They are carried over instead.
-const ROUTE_ADDON = /^(renodx-dlss.*|dlss5-nr|dlss5-feed.*|machiavelli-dlss5nr|deep-fried-chicken|alexs-toolkit)\.addon(32|64)?$/i;
+const ROUTE_ADDON = /^(renodx-dlss.*|dlss5-nr|dlss5-feed.*|machiavelli-dlss5nr|deep-fried-chicken|alexs-toolkit|aio-sf-toggle|gitc-uplift)\.addon(32|64)?$/i;
 function extraAddons(gameDir, manifest) {
   return (manifest.added || []).filter((rel) => typeof rel === 'string')
     .filter((rel) => /\.addon(32|64)?$/i.test(rel) && !ROUTE_ADDON.test(path.basename(rel)))
@@ -34,7 +34,7 @@ function profileFile(gameDir, exePath, api, route) {
   // The profile file is named after the route, so this list is what decides
   // whether a route can keep its own settings at all - and a route missing
   // from it fails the install with nothing but "Invalid route".
-  if (!['native', 'feeder', 'optiscaler', 'renodx', 'combo', 'lecram12'].includes(route)) throw new Error('Invalid route');
+  if (!['native', 'feeder', 'optiscaler', 'renodx', 'combo', 'lecram12', 'uplift'].includes(route)) throw new Error('Invalid route');
   const id = crypto.createHash('sha256').update(`${path.relative(gameDir, exePath).toLowerCase()}|${api}`).digest('hex').slice(0, 24);
   return journal.safePath(gameDir, `_DLSS5_Backup/.profiles/${id}-${route}.json`);
 }
@@ -114,7 +114,7 @@ async function install(config, log = () => {}) {
   // ReShade's global Vulkan registration is not a game-local transaction.
   // Keep its existing recoverable partial manifest on failure instead of
   // rolling that manifest away while leaving a shared layer registered.
-  if (config.api === 'vulkan' && (config.route === 'feeder' || config.route === 'lecram12')) {
+  if (config.api === 'vulkan' && (config.route === 'feeder' || config.route === 'lecram12' || config.route === 'uplift')) {
     compatibility.assertLoaderCompatible(config, old);
     const profile = !old ? loadProfile(config) : {};
     if (Object.keys(profile).length) {

@@ -6,8 +6,9 @@
 // fetched here from pinned public sources into %APPDATA%\dlss5-swapper\payload
 // (same layout as the old resources\payload), verified by digest and, for the
 // NVIDIA files, by their Authenticode signature. Downloaded files are never
-// executed. The DLSS 5 model (nvngx_dlssnr.dll) has no public source and is
-// imported by the user.
+// executed. The DLSS 5 model (nvngx_dlssnr.dll): NVIDIA's original, signed
+// 310.9.16 from a public mirror (pinned archive + file hash + signature), or
+// imported by the user from a file of their own.
 //
 // Errors carry `code` (an i18n key in the renderer) and `params`; `message`
 // is the English fallback. No Electron dependency: every entry point takes the
@@ -26,6 +27,16 @@ const UA = { 'User-Agent': 'DLSS-AiO-Swapper' };
 const LIST_TTL = 6 * 60 * 60 * 1000;
 const NVIDIA = 'NVIDIA Corporation';
 const NR_MIN = '310.8';
+// NVIDIA's own nvngx_dlssnr.dll 310.9.16 (the file NBA 2K27 and Hogwarts Legacy
+// ship), mirrored unmodified on rhi-repo since 2026-11-16. Pinned three times:
+// archive digest, DLL SHA-256 and NVIDIA's Authenticode signature.
+const NVIDIA_NR = {
+  version: '310.9.16.0',
+  label: '310.9.16',
+  file: 'nvngx_dlssnr.dll',
+  archive: ['nvngx_dlssnr_310.9.16-nvidia.zip', 'https://github.com/RankFTW/rhi-repo/releases/download/dlssnr-310.9.16-nvidia/nvngx_dlssnr_310.9.16-nvidia.zip', '5277355f0578d36f2a25413d8c7ff4c6f9966cea5bad714305f23b20173e09f6'],
+  sha256: '2bc19bc09a7b89dd44f73e2ac0108fcc586e2154bdd0830f242f4f040e28789f'
+};
 
 // NVIDIA's official DLSS SDK repository: release tags + the DLLs in lib/.
 const DLSS_REPO = {
@@ -91,7 +102,7 @@ const COMPONENTS = [
   { id: 'dlss', name: 'DLSS Super Resolution', kind: 'dlss', file: 'nvngx_dlss.dll', since: '3.1.0', source: NV_SOURCE },
   { id: 'dlssd', name: 'DLSS Ray Reconstruction', kind: 'dlss', file: 'nvngx_dlssd.dll', since: '310.1.0', source: NV_SOURCE },
   { id: 'dlssg', name: 'DLSS Frame Generation', kind: 'dlss', file: 'nvngx_dlssg.dll', since: '310.4.0', source: NV_SOURCE },
-  { id: 'dlssnr', name: 'DLSS 5 model (nvngx_dlssnr.dll)', kind: 'import', file: 'nvngx_dlssnr.dll', source: 'import' },
+  { id: 'dlssnr', name: 'DLSS 5 model (nvngx_dlssnr.dll)', kind: 'import', file: 'nvngx_dlssnr.dll', source: 'GitHub RankFTW/rhi-repo · NVIDIA original ' + NVIDIA_NR.label + ' · or import' },
   { id: 'renodx', name: 'RenoDX DLSS5 add-on', kind: 'renodx', source: 'GitHub RankFTW/rhi-repo · RenoDX ' + renodxRelease.CONSUMER.version },
   { id: 'renodx-sf', name: 'RenoDX multipass (DLSS Tool)', kind: 'renodx-sf', source: 'GitHub RankFTW/rhi-repo · RenoDX ' + renodxRelease.MULTIPASS.version },
   { id: 'feeder', name: 'DLSS5-Feeder', kind: 'feeder', source: 'GitHub jlrouzies-fr/DLSS5-Feeder · ' + feederRelease.version },
@@ -172,6 +183,10 @@ function placeFile(src, dest) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const part = `${dest}.part-${process.pid}`;
   fs.copyFileSync(src, part);
+  // Archives can carry the read-only attribute (the ShortFuse zip does); a
+  // read-only copy then blocks its own next update with EPERM.
+  try { fs.chmodSync(part, 0o666); } catch { /* best effort */ }
+  try { if (fs.existsSync(dest)) fs.chmodSync(dest, 0o666); } catch { /* best effort */ }
   try { fs.renameSync(part, dest); }
   catch (error) {
     rmrf(part);
@@ -369,7 +384,7 @@ function nrModels(version) {
 function statusOne(c, payloadDir, tags) {
   const files = componentFiles(c, payloadDir);
   const present = files.filter(([f]) => fs.existsSync(f));
-  const row = { id: c.id, name: c.name, source: c.source, kind: c.kind, downloadable: c.kind !== 'import', optional: Boolean(c.optional), version: null, status: 'missing', note: null };
+  const row = { id: c.id, name: c.name, source: c.source, kind: c.kind, downloadable: true, optional: Boolean(c.optional), version: null, status: 'missing', note: null };
   if (!present.length) return row;
   if (c.kind === 'dlss' || c.kind === 'import') {
     row.version = pe.getFileVersion(files[0][0]);
@@ -377,6 +392,7 @@ function statusOne(c, payloadDir, tags) {
     if (c.kind === 'import') {
       row.models = nrModels(row.version);
       if (!row.version || cmpVer(row.version, NR_MIN) < 0) { row.status = 'outdated'; row.note = { key: 'compNoteNrOld', params: { min: NR_MIN } }; }
+      else if (cmpVer(row.version, NVIDIA_NR.version) < 0) { row.status = 'outdated'; row.latest = NVIDIA_NR.label; row.note = { key: 'compNoteUpdate', params: { version: NVIDIA_NR.label } }; }
       else row.note = { key: row.models === 'AB' ? 'compNoteModelsAB' : 'compNoteModelsA', params: {} };
     } else if (tags) {
       const newest = tagsFor(c, tags)[0];
@@ -599,13 +615,29 @@ async function downloadLegacyNr(payloadDir, tmp, progress, opts) {
   return { version: LEGACY_NR.label };
 }
 
+// NVIDIA's signed DLSS 5 model. Same checks as an import, plus two pins.
+async function downloadNr(payloadDir, tmp, progress, opts) {
+  const [name, url, sha] = NVIDIA_NR.archive;
+  const zip = path.join(tmp, name);
+  await fetchVerified(url, sha, zip, (g, t) => progress({ phase: 'download', received: g, total: t }), 'DLSS 5 ' + NVIDIA_NR.label);
+  progress({ phase: 'verify' });
+  const out = path.join(tmp, 'x');
+  await extract(zip, { dir: out });
+  const src = findFile(out, NVIDIA_NR.file);
+  if (!src) throw missingInArchive('DLSS 5 ' + NVIDIA_NR.label, NVIDIA_NR.file);
+  checkPinned(src, NVIDIA_NR.sha256, NVIDIA_NR.file);
+  const info = await validateNr(src, opts);
+  try { fs.chmodSync(src, 0o666); } catch { /* best effort */ }
+  placeFile(src, path.join(payloadDir, 'streamline', NVIDIA_NR.file));
+  return info;
+}
+
 // download(payloadDir, id, opts, progressCb) - opts.tag ('v310.9.16') picks
 // the NVIDIA release for dlss/dlssd/dlssg; opts.cacheDir caches the release
 // list; opts.helper overrides the nv-drs.exe path.
 async function download(payloadDir, id, opts = {}, progressCb = () => {}) {
   const c = byId(id);
   if (!c) throw fail('compErrUnknown', { id }, 'Unknown component: ' + id);
-  if (c.kind === 'import') throw fail('compErrNotDownloadable', {}, 'The DLSS 5 model is not publicly downloadable - import it instead.');
   fs.mkdirSync(payloadDir, { recursive: true });
   const tmp = tmpDir(payloadDir);
   const progress = (p) => { try { progressCb({ id, ...p }); } catch {} };
@@ -622,6 +654,7 @@ async function download(payloadDir, id, opts = {}, progressCb = () => {}) {
       case 'feeder': result = await downloadFeeder(payloadDir, tmp, progress); break;
       case 'reshade': result = await downloadReShade(payloadDir, tmp, progress); break;
       case 'legacy-nr': result = await downloadLegacyNr(payloadDir, tmp, progress, opts); break;
+      case 'import': result = await downloadNr(payloadDir, tmp, progress, opts); break;
       default: throw fail('compErrUnknown', { id }, 'Unsupported component: ' + id);
     }
     progress({ phase: 'done', version: result.version });
@@ -634,14 +667,14 @@ async function download(payloadDir, id, opts = {}, progressCb = () => {}) {
   }
 }
 
-// Downloads every component that is not ok. The DLSS 5 model is skipped
-// (import only). opts.versions = { dlss: 'v310.9.16', dlssd: ..., dlssg: ... }.
+// Downloads every component that is not ok. A DLSS 5 model that is present
+// (imported or downloaded) is never replaced by Download all. opts.versions = { dlss: 'v310.9.16', dlssd: ..., dlssg: ... }.
 async function ensureAll(payloadDir, opts = {}, progressCb = () => {}) {
   const before = status(payloadDir, opts);
   const results = [];
   for (const row of before.components) {
     if (row.optional) { results.push({ id: row.id, ok: true, skipped: true, code: 'compOptional' }); continue; }
-    if (!row.downloadable) { results.push({ id: row.id, ok: row.status !== 'missing', skipped: true, code: row.status === 'missing' ? 'compNeedsImport' : 'compPresent' }); continue; }
+    if (row.kind === 'import' && row.status !== 'missing' && !opts.force) { results.push({ id: row.id, ok: true, skipped: true, code: 'compPresent' }); continue; }
     const pick = opts.versions && opts.versions[row.id];
     const wanted = pick && row.version ? cmpVer(row.version.split('.').slice(0, 3).join('.'), pick) !== 0 : Boolean(pick);
     if (row.status === 'ok' && !opts.force && !wanted) { results.push({ id: row.id, ok: true, skipped: true, code: 'compUpToDate' }); continue; }
@@ -765,7 +798,7 @@ async function migrate(payloadDir, legacyDir, opts = {}, progressCb = () => {}) 
 }
 
 module.exports = {
-  COMPONENTS, STREAMLINE, RESHADE, DLSS_REPO, NR_MIN, LEGACY_NR, legacyNrPath, legacyNrReady, removeLegacyNr,
+  COMPONENTS, STREAMLINE, RESHADE, DLSS_REPO, NR_MIN, NVIDIA_NR, LEGACY_NR, legacyNrPath, legacyNrReady, removeLegacyNr,
   status, download, ensureAll, importNr, migrate, legacyDirs, legacyOffer,
   dlssVersions, dlssTags, sigcheck, cmpVer, nrModels, zipFromSetup
 };

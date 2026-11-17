@@ -32,20 +32,20 @@ module.exports = {
     'ebf83c07fb3b2939908c3795d887afde3161c89a28ba391724efc784ce1bdabe'
   ]
 ],
-  // DLSS5-Feeder 1.19.0 zip: path inside the zip -> sha256.
+  // DLSS5-Feeder 2.0.0 zip: path inside the zip -> sha256.
   feederZip: {
-  'dlss5-feed.addon32': '34c767bd53a99f51a6cb5d87b267734e04314d16bf495a6c69ab98acd62d0874',
-  'dlss5-feed.addon64': '2b8c905012fd464ddf0554c6b178cba55030ec10eb917acdcee0e7a2376fe4dd',
-  'dlss5-feed-helper.addon64': 'c069aa9d8b01fcee34234bc458a798c3be6f27fc8b9f23b74b5fb1784a828886',
-  'Verify-DLSS5Feeder.ps1': 'c84b672c8b92241fcd03018ce731eab1cb7f09f68f64cf41014c7bf7d76b5c2b',
-  'host64/dlss5-feed-host64.exe': '79e427430c5c0102f6c7a557155b706ad51b0c40933f6e245fce922bf5b1401e',
+  'dlss5-feed.addon32': '7ec337e0023652655fbf0f40f815bc1b4cd95eec43e1216a681a9ac0bcef2793',
+  'dlss5-feed.addon64': 'd2b940c7617f8bc418ee0b02d3aed28cfd58e44e6095f0f862b6ff96a4388ffa',
+  'dlss5-feed-helper.addon64': '39d03c2d489b99a3074d843342bf453fe8fa2ba2781a221cfe803c1a28297298',
+  'Verify-DLSS5Feeder.ps1': 'a3b1a4aea238508fb8971d07cb40ece0b37ec512d89b49421a2a0ae3e31f948c',
+  'host64/dlss5-feed-host64.exe': '7d360bf6d7b21d2d180346a40d74eafea45581802374225e6d30737fb97bc48f',
   'layer-x64/run-with-feed-layer.bat': 'bc9aa7964742e23653556be978f540f503f3cef928b6de7a38f77c570bb764f9',
-  'layer-x64/VkLayer_feed_vk.dll': 'ed5978fff1ac1b2c85aed7b1ffe2c7668e2be71f5a8cff86b4327bfa1d959a28',
+  'layer-x64/VkLayer_feed_vk.dll': '64b2b8bb81856a5a558f2edd11b8eb303181b3453a4e928743fdadbd3bbd2fbc',
   'layer-x64/VkLayer_feed_vk.json': 'c15967b3f8847a145e21058a1e57e92c595ee17fc5dd23ab3278b0148ad6e9d1',
   'layer-x86/run-with-feed-layer32.bat': '75d4584ad01619402a10e0d8342b114613057a1d3b0ac8dbe9280b740090c3e8',
-  'layer-x86/VkLayer_feed_vk32.dll': 'cbb3039e13ce1a851c00bba24a93586ea8d9731dad3fcf426f412cc764a61860',
+  'layer-x86/VkLayer_feed_vk32.dll': 'd1d3b4c14810ea757eb83f5e4262c23cd91f44077407f8b805213003efc79792',
   'layer-x86/VkLayer_feed_vk32.json': '28f8174eb8fed02266bafa6910eab07922ec6d2bdb33110699c586f74b254921',
-  'reshade-shaders/Shaders/DLSS5_Feed.fx': 'c4ba1610df8e1593faa7c203d6d0517058d3a8ecf2dfda18ca67849844391456'
+  'reshade-shaders/Shaders/DLSS5_Feed.fx': '72f537693374f5d2f63900cccb1cf48dd067dde3ef982c94086c8801448d5f6d'
 },
   // Shader dependencies and license files the Feeder release does not carry:
   // [path below payload\feeder, raw URL at a pinned commit, sha256].
@@ -172,7 +172,7 @@ module.exports = {
   ],
   [
     'licenses/DLSS5-Feeder-LICENSE.txt',
-    'https://raw.githubusercontent.com/jlrouzies-fr/DLSS5-Feeder/v1.19.0/LICENSE',
+    'https://raw.githubusercontent.com/jlrouzies-fr/DLSS5-Feeder/v2.0.0/LICENSE',
     '6562d5a5e3d7534711e34f4b34335f23f067acc839ae5274c1250bf5f4654b8b'
   ]
 ],

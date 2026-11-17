@@ -862,7 +862,7 @@ function installOptions(d, pick, dir) {
         <option value="optiscaler"${opti ? ' selected' : ''}${optiReason ? ' disabled' : ''}>${neutral ? esc(t('routePort')) : 'OptiScaler DLSS-NR (no ReShade)'}</option>
       </select></label>
       ${!opti ? `<label><span>${t('fRoute')}</span><select id="routeChoice">${routes.filter(item => item !== 'optiscaler').map((item) =>
-        `<option value="${item}"${item === route ? ' selected' : ''}>${t(item === 'feeder' ? 'routeFeeder' : item === 'renodx' ? 'routeRenodx' : item === 'combo' ? 'routeCombo' : item === 'lecram12' ? 'routeLecram12' : 'routeNative')}</option>`).join('')}</select></label>
+        `<option value="${item}"${item === route ? ' selected' : ''}>${t(item === 'feeder' ? 'routeFeeder' : item === 'renodx' ? 'routeRenodx' : item === 'combo' ? 'routeCombo' : item === 'lecram12' ? 'routeLecram12' : item === 'uplift' ? 'routeUplift' : 'routeNative')}</option>`).join('')}</select></label>
       ` : ''}
       ${!opti && RESHADE_PROXY_APIS.includes(api.api) && api.label !== 'DirectX 12' ? `<label><span>${t('fReshadeFile')}</span><select id="reshadeProxy">
         <option value="dxgi"${pick.reshadeProxy !== 'd3d11' ? ' selected' : ''}>dxgi.dll</option>
@@ -878,6 +878,7 @@ function installOptions(d, pick, dir) {
         ${route === 'renodx' ? `<span>${t('routeRenodxHint')}</span>` : ''}
         ${route === 'combo' ? `<span>${t('routeComboHint')}</span>` : ''}
         ${route === 'lecram12' ? `<span>${t('routeLecram12Hint')}</span>` : ''}
+        ${route === 'uplift' ? `<span>${t('routeUpliftHint')}</span>` : ''}
         ${!opti && RESHADE_PROXY_APIS.includes(api.api) && pick.reshadeProxy === 'd3d11' ? `<span>${t(api.api === 'dxgi' ? 'reshadeProxyHint' : 'reshadeProxyWrapHint')}</span>` : ''}
         ${opti && (api.api === 'vulkan' || api.label === 'DirectX 11') ? `<span>${t('optiBridgeHint')}</span>` : ''}
         ${opti && api.api === 'vulkan' ? `<span>${t('optiVulkanHint')}</span>` : ''}
@@ -1345,7 +1346,7 @@ function renderComponentTable() {
   const head = `<tr><th>${esc(t('compColName'))}</th><th>${esc(t('compColVersion'))}</th><th>${esc(t('compColStatus'))}</th><th></th></tr>`;
   const amd = compGpuNow() === 'amd';
   const rows = s.components.filter(compRelevant).map((row) => {
-    const source = row.kind === 'import' ? t('compSourceImport') : row.source;
+    const source = row.kind === 'import' ? t('compSourceNr', { version: row.latest || '310.9.16' }) : row.source;
     const note = row.note ? t(row.note.key, row.note.params || {}) : '';
     const err = comp.errors[row.id];
     let action;
@@ -1366,7 +1367,9 @@ function renderComponentTable() {
           `<button class="ghost sm" data-comp-act="legacy-remove" ${dis}>${esc(t('caRemove'))}</button>`
         : `<button class="ghost sm" data-comp-act="legacy-download" ${dis}>${esc(t('compDownload'))}…</button>`;
     } else if (row.kind === 'import') {
-      action = `<button class="ghost sm" data-comp-act="import" ${dis}>${esc(t('compImportNr'))}</button>`;
+      // NVIDIA's signed model is a download now; importing an own file stays.
+      action = `<button class="${row.status === 'ok' ? 'ghost' : 'glass-btn'} sm" data-comp-act="download" data-comp-id="${esc(row.id)}" ${dis}>${esc(compActionLabel(row))}</button>` +
+        `<button class="ghost sm" data-comp-act="import" ${dis}>${esc(t('compImportNr'))}</button>`;
     } else {
       let select = '';
       const list = row.kind === 'dlss' && comp.versions && comp.versions.ok && comp.versions[row.id];
@@ -1454,8 +1457,8 @@ async function refreshComponents() {
 
 // The Components entry in the sidebar glows with a count when something there
 // can be downloaded or updated (a new RenoDX build, newer NVIDIA DLLs), so an
-// update is seen without opening the tab. Not for the DLSS 5 model: that one
-// is imported by hand and has no download to offer.
+// update is seen without opening the tab - the DLSS 5 model included, now
+// that NVIDIA's signed file can be downloaded.
 function paintCompNav() {
   const s = comp.status;
   const list = s && s.ok && Array.isArray(s.components) ? s.components : [];
@@ -2228,7 +2231,7 @@ document.addEventListener('keydown', (e) => {
 // DirectX 11 games that ignore dxgi.dll (#328), and the wrapped DirectX 8/9
 // ones that become DirectX 11 inside dgVoodoo (#343).
 const RESHADE_PROXY_APIS = ['dxgi', 'd3d8', 'd3d9', 'ddraw'];
-const SPOKEN_JOB_CODES = new Set(['historySaveWarning', 'driverNeuralFault', 'oldShaderCompiler', 'overlaySkipped', 'feedVkLayerReady', 'neuralModelKept', 'rivalConsumerSetAside', 'overlayNotForRoute', 'multipassNext', 'forwarderRetired', 'optiDownloading', 'optiVerified', 'restoreRecovered', 'legacyNrUsed', 'nrOldCard', 'portUsed', 'portModelReplaced', 'feederLeftover', 'extraAddonKept']);
+const SPOKEN_JOB_CODES = new Set(['upliftDownloading', 'upliftReady', 'historySaveWarning', 'driverNeuralFault', 'oldShaderCompiler', 'overlaySkipped', 'feedVkLayerReady', 'neuralModelKept', 'rivalConsumerSetAside', 'overlayNotForRoute', 'multipassNext', 'forwarderRetired', 'optiDownloading', 'optiVerified', 'restoreRecovered', 'legacyNrUsed', 'nrOldCard', 'portUsed', 'portModelReplaced', 'feederLeftover', 'extraAddonKept', 'sfToggleInstalled']);
 window.lab.onJob((e) => jobLog(SPOKEN_JOB_CODES.has(e.code)
   ? t(e.code, ...Object.values(e.params || {}))
   : `${e.code} ${JSON.stringify(e.params)}`));

@@ -62,7 +62,9 @@ Pick a game, press **Install** – the app works out the right route for that ga
 | **ReShade** (add-on build) | the loader the DLSS 5 add-ons run in – installed and configured for the game's API |
 | **RenoDX DLSS5** (lecram) | runs DLSS 5 Neural Rendering in games that already have DLSS |
 | **RenoDX DLSS Tool** (ShortFuse, multipass) | DLSS 5 with or without the game's own DLSS, 1–10 passes – or *experimental*: **lecram + ShortFuse together** (both run, `ForeignNr=observe`) |
+| **AiO SF Toggle** (ours) | gives ShortFuse's DLSS Tool an on/off key – **F6** in the game switches DLSS 5 off and back on (`ReShade.ini` → `[AIO-SF-TOGGLE] Key=`); source in [`tools/aio-sf-toggle`](tools/aio-sf-toggle) |
 | **DLSS5-Feeder** | brings DLSS 5 to games **without** DLSS (DirectX 9–12, Vulkan, OpenGL, even 32-bit and emulators) |
+| **GITC Uplift** (ghostinthecamera, free) | DLSS 5 for games **with or without** DLSS – DirectX 9–12, OpenGL, Vulkan, 32-bit – finds depth and motion itself, no Feeder |
 | **OptiScaler** (DLSS-NR builds) | alternative route that replaces the game's upscaler and runs DLSS 5 on top – also for FSR/XeSS games |
 | **dgVoodoo 2** | wrapper for old DirectX 8/9 games so they can use the modern route |
 | **LumeniteFX** | motion-vector / depth shaders the Feeder needs in games without DLSS |
@@ -106,23 +108,24 @@ The repository and the installer contain **not a single third-party DLL**. The a
 | DLSS SR / RR / FG (`nvngx_dlss`, `nvngx_dlssd`, `nvngx_dlssg`) | Official from NVIDIA: [NVIDIA/DLSS](https://github.com/NVIDIA/DLSS) (any published version) | NVIDIA signature + version number |
 | Streamline 2.13 (`sl.*.dll`) | [RankFTW/rhi-repo](https://github.com/RankFTW/rhi-repo) | SHA-256 + NVIDIA signature |
 | RenoDX DLSS5 8.5.0-rc10 (lecram) + multipass (ShortFuse) | [RankFTW/rhi-repo](https://github.com/RankFTW/rhi-repo) | SHA-256 |
-| DLSS5-Feeder 1.19.0 | [jlrouzies-fr/DLSS5-Feeder](https://github.com/jlrouzies-fr/DLSS5-Feeder) | SHA-256 |
+| DLSS5-Feeder 2.0.0 | [jlrouzies-fr/DLSS5-Feeder](https://github.com/jlrouzies-fr/DLSS5-Feeder) | SHA-256 |
 | ReShade 6.8.0 (add-on build) | [reshade.me](https://reshade.me) | SHA-256 |
 | OptiScaler DLSS-NR builds | [Dagherbou/OptiScaler_DLSSNR](https://github.com/Dagherbou/OptiScaler_DLSSNR), [jlrouzies-fr/OptiScaler-DLSSNR-PreSR-Multipass](https://github.com/jlrouzies-fr/OptiScaler-DLSSNR-PreSR-Multipass) | SHA-256 |
 | dgVoodoo 2.87.6 | [dege-diosg/dgVoodoo2](https://github.com/dege-diosg/dgVoodoo2) | SHA-256 |
 | LumeniteFX shaders | [umar-afzaal/LumeniteFX](https://github.com/umar-afzaal/LumeniteFX) | pinned commit |
-| **DLSS 5 runtime `nvngx_dlssnr.dll`** | **not included, no download** – see below | NVIDIA signature |
+| **DLSS 5 runtime `nvngx_dlssnr.dll` 310.9.16** (NVIDIA original) | [RankFTW/rhi-repo](https://github.com/RankFTW/rhi-repo/releases/tag/dlssnr-310.9.16-nvidia) – or import your own | SHA-256 (archive + DLL) + NVIDIA signature |
+| GITC Uplift 2.0.0 (route for games with or without DLSS) | [ghostinthecamera/GITC-Uplift](https://github.com/ghostinthecamera/GITC-Uplift) – downloaded on first use | SHA-256 (archive + every file) |
 | OptiScaler F5 + vendor-neutral DLSS 5 port (AMD / Intel only) | [janblade/OptiScaler-F5-DLSSNR-Multipass](https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass) | SHA-256 |
 | *Optional:* DLSS 5 model for RTX 20/30/40 (`310.8.SF-v2`, community-modified) | [RankFTW/rhi-repo](https://github.com/RankFTW/rhi-repo/releases/tag/dlssnr-310.8.SF-v2) – only after you confirm a warning | SHA-256 (archive + DLL); **not** NVIDIA-signed |
 
 ### What about the DLSS 5 DLL (`nvngx_dlssnr.dll`)?
-**The brand-new DLSS 5 DLL (310.9.16 with Preset B) is not included in the app yet.** NVIDIA has not publicly released the DLSS 5 runtime so far – it only ships with games that officially support DLSS 5 (currently NBA 2K27). That's why it is neither hosted nor linked here.
+**Since 3.0.15 it's one click:** **Components → DLSS 5 model → Download** gets NVIDIA's **original, signed** `nvngx_dlssnr.dll` **310.9.16** (Preset A and B) – the very file NBA 2K27 and Hogwarts Legacy ship, mirrored unmodified on [RankFTW/rhi-repo](https://github.com/RankFTW/rhi-repo/releases/tag/dlssnr-310.9.16-nvidia). *Download all* includes it.
 
-- **As soon as NVIDIA publishes the DLL officially, it will be added to the app via an update** – then it's just one click.
-- **Until then:** if you **own NBA 2K27**, you'll find the file in the game folder; with a bit of research you can also find it online. Add it to the app via **Components → Import DLSS 5 DLL** (file or ZIP).
-- The app only accepts files with a **valid NVIDIA signature** – tampered or fake DLLs are rejected. It also shows you the version:
+- It is checked three times: archive SHA-256, file SHA-256 (`2bc19bc0…e28789f`) and NVIDIA's Authenticode signature. Anything else is rejected.
+- **Import DLSS 5 DLL** stays for your own file (e.g. a newer one from a game) – same signature check. The app shows the version:
   - **310.9.16 or newer** → contains Preset **A and B** (recommended)
   - **310.8.x** → Preset A only
+- *Download all* never replaces a DLSS 5 model you imported yourself.
 
 ### RTX 20 / 30 / 40 cards
 
@@ -139,7 +142,7 @@ Since 3.0.9 the app offers it as an **optional** component: **Components → DLS
 
 NVIDIA's DLSS 5 runtime needs NVIDIA's driver, so on AMD and Intel it can't start at all. Since 3.0.9 the app detects an AMD or Intel GPU and switches to a **vendor-neutral port** by janblade ([OptiScaler F5](https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass), GPL-3.0): it runs the DLSS 5 network itself on DirectX 12 compute + DirectML.
 
-- **The only component you need** is NVIDIA's **original, signed** `nvngx_dlssnr.dll` **310.9 or newer** – import it under Components. Everything else (Streamline, DLSS SR/RR/FG, RenoDX, Feeder, ReShade) is NVIDIA-only. In **Components** pick **Graphics card: AMD Radeon / Intel Arc** (preselected on those PCs) and the list shows just that one row. OptiScaler F5 and the port are downloaded automatically on your first install. You also need the Microsoft Visual C++ runtime (x64).
+- **The only component you need** is NVIDIA's **original, signed** `nvngx_dlssnr.dll` **310.9 or newer** – download it (or import your own) under Components. Everything else (Streamline, DLSS SR/RR/FG, RenoDX, Feeder, ReShade) is NVIDIA-only. In **Components** pick **Graphics card: AMD Radeon / Intel Arc** (preselected on those PCs) and the list shows just that one row. OptiScaler F5 and the port are downloaded automatically on your first install. You also need the Microsoft Visual C++ runtime (x64).
 - On a game's page the route **DLSS 5 for AMD / Intel (experimental)** is preselected; the NVIDIA-only routes are greyed out. It runs the small model (**B**); the A/B switch is not offered.
 - DirectX 12 games work best; DirectX 11 / Vulkan go through OptiScaler's D3D12 bridge. In game, turn on **DLSS, FSR or XeSS** (any quality) and press **Insert** – the status line should say *Model backend: vendor-neutral port*.
 - Everything is downloaded from janblade's GitHub release and checked against pinned SHA-256s. **Restore** removes it like any other route.
@@ -186,7 +189,7 @@ After the malware rumours around the discontinued DLSS 5 Swapper, here is exactl
 
 1. Download `DLSS-AiO-Swapper-Setup-x.y.z.exe` (or the portable version) from [Releases](../../releases).
 2. Install and launch it.
-3. Open **Components** → *Download all*, then import your `nvngx_dlssnr.dll`.
+3. Open **Components** → *Download all* (this now includes NVIDIA's DLSS 5 model).
 4. Pick a game → **Install** → done. Model, presets and frame generation are set right on the game's page.
 
 **Requirements:** Windows 10/11 64-bit, NVIDIA RTX graphics card, current driver (616.64 or newer recommended).

@@ -21,15 +21,15 @@ const CONSUMER = Object.freeze({
   sha256: 'dcd93881e976ad033d83c2bb01f4bc3e4ddc59c15fe0dd4ca165bc5fc7d1ac68'
 });
 // ShortFuse's DLSS Tool build, carrying DirectNeuralRenderingPassCount (#251).
-// 26.1016 adds its own model choice (DirectNeuralRenderingPreset: Default /
-// Preset A / Preset B), Tone and Character Intensity and a host transport for
-// D3D9 / OpenGL.
+// 26.1016 added its own model choice (DirectNeuralRenderingPreset), Tone and
+// Character Intensity; 26.1025 adds Model Corrections / Adjustments (black and
+// white level), pass tabs and per-pass custom effects.
 const MULTIPASS = Object.freeze({
-  version: 'SF 26.1016.1304',
+  version: 'SF 26.1025.0009',
   file: 'renodx-dlss.addon64',
-  archive: Object.freeze(['renodx-dlss_SF_26.1016.1304.zip', 'https://github.com/RankFTW/rhi-repo/releases/download/renodx-dlss-SF-26.1016.1304/renodx-dlss_SF_26.1016.1304.zip', 'bc4ec58d31565f6919c4e0c1aad8d8ea6443199e12b54f9e019b2ffd8afaaabf']),
-  size: 3333632,
-  sha256: 'a8fd34b531fd22c3dbd008ed8fd3cbfcca2fb451729e19cd1fc2e4c85b5068d4'
+  archive: Object.freeze(['renodx-dlss_SF_26.1025.0009.zip', 'https://github.com/RankFTW/rhi-repo/releases/download/renodx-dlss-SF-26.1025.0009/renodx-dlss_SF_26.1025.0009.zip', '9851d9fb959076d94f9877d34dc7cee82ce6591ce0df9a54f9d2a92ccaaa6b9a']),
+  size: 3661312,
+  sha256: 'dd5ed7ba6773a6168390f3a53e757f09b563ecdf1a9f4fcdec6dd3129d93bace'
 });
 // Every neural evaluate faults inside NVIDIA's own NGX runtime on driver
 // 616.64 and newer with the 4.x consumers - measured upstream across three
@@ -49,6 +49,7 @@ const FAULTING = Object.freeze({
 const SHIPPED = Object.freeze([
   CONSUMER.sha256,
   MULTIPASS.sha256,
+  'a8fd34b531fd22c3dbd008ed8fd3cbfcca2fb451729e19cd1fc2e4c85b5068d4', // DLSS Tool SF 26.1016.1304 (3.0.14 - 3.0.15)
   '1310119c87e4ab5ad0af41511411bd4608ff3c3030a29196ae0e4bba32c84585', // DLSS Tool SF 26.1003.2350 (3.0.5 - 3.0.13)
   '342341f669f1d64e0c70c8593a07a2fab5075e073dfae97c331c9a6776260a0a' // RenoDX DLSS5 6.5.3 (3.0.0 - 3.0.4)
 ]);

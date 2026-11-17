@@ -54,22 +54,22 @@ const F5 = Object.freeze({
   licenses: Object.freeze(['DirectX_LICENSE.txt', 'FidelityFX_v2_LICENSE.md', 'PeripheralWarp_LICENSE.txt', 'RenoDX_ATTRIBUTION.txt', 'XeSS_LICENSE.txt'])
 });
 const PORT = Object.freeze({
-  url: 'https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass/releases/download/v0.1.35.1/Optional-Vendor-Neutral-DLSS5-Forwarder.zip',
-  sha256: '74a24eb103ef05a54ede6598d70f4c7093a2c683f59c40972d7a635e36ce8ae9',
+  url: 'https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass/releases/download/v0.1.38/Optional-Vendor-Neutral-DLSS5-Forwarder.zip',
+  sha256: '8a41f620e0c3f56fb6b617bb824b2099c5f04608f801ba1b4a7ca5c1f2674e96',
   files: Object.freeze({
-    'nvngx.dll_dlssnr.dll': '30aefc7aa19399c2905bfa64f69cca7eb1574135425d905c0e2f052fc523099c',
-    'nr_port.ini': '61d305b3631a7b9f7252fcdb6eeccc6f4663e89c806872e66266918cf15c7020',
-    'README-Vendor-Neutral-Port.txt': '12681eb33d63f1c8f03e4e77c3df24c8cdf7ddece9cb1b32e6004f13a825e08a'
+    'nvngx.dll_dlssnr.dll': '9eddca0d5c1e347a94c1bef7908b43d915cd7e8787ce58c64eec152e23f1c267',
+    'nr_port.ini': 'ffdab60dc37d5aec2a5d6e73c4a2134ad14e159e0c8ccfd62073cfc1fc246fb7',
+    'README-Vendor-Neutral-Port.txt': '87507ec70f54559bac1e93d29fd801640105b478aed2028a9a20964ccf89a348'
   }),
   // The port reads the 310.9 small network; an older model file runs the big
   // one, slowly.
   minModel: '310.9'
 });
 const F5_RELEASE = Object.freeze({
-  version: '0.1.35.1-f5',
-  label: '0.1.35.1 - F5 (janblade)',
-  url: 'https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass/releases/download/v0.1.35.1/OptiScaler-DLSSNR-F5-v0.1.35.1-with-dlss-fg.zip',
-  sha256: '29532c7dff93a7171e5825238fc0bdd0cfb9828cde7d4fcef5608537d589dc23',
+  version: '0.1.38-f5',
+  label: '0.1.38 - F5 (janblade)',
+  url: 'https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass/releases/download/v0.1.38/v0.1.38-Optiscaler-F5.zip',
+  sha256: '2ef54757f94f9a9ffc489cecb187341677e5da0e5079450c1de50eb402c6d991',
   layout: F5,
   port: PORT
 });
@@ -176,7 +176,11 @@ function configure(text, target) {
   for (const [section, key, value] of [
     ['DlssNr', 'Enabled', 'true'], ['Log', 'LogToFile', 'true'], ['Log', 'LogLevel', '2'],
     ['Spoofing', 'Dxgi', target.vendorNeutral ? 'auto' : 'false'], ['Plugins', 'LoadAsiPlugins', 'false'],
-    ['ProcessFilter', 'TargetProcessName', path.basename(target.exePath)]
+    ['ProcessFilter', 'TargetProcessName', path.basename(target.exePath)],
+    // F5 0.1.36 turns its own frame generation (F5Low) on by default. Keep the
+    // previous default: frame generation is the game's/person's choice, and the
+    // F5Low plugin is not part of what this app installs.
+    ['FrameGen', 'FGOutput', 'auto']
   ]) out = ini.setIni(out, section, key, value);
   if (target.vendorNeutral) {
     // NVIDIA's DLSS upscaler cannot run without NGX: hand the game's DLSS/FSR/
