@@ -31,6 +31,12 @@ const VARIANTS = Object.freeze({
 });
 const slotOf = (name) => VARIANTS[name] || (Object.hasOwn(NAMES, name) ? name : null);
 
+function resolveAddonName(filename) {
+  const name = path.basename(filename).toLowerCase();
+  if (name === 'dlss5-nr(9).addon64') return 'renodx-dlss5.addon64';
+  return Object.hasOwn(NAMES, name) ? name : null;
+}
+
 const fail = (code, message, params = {}) => Object.assign(new Error(message), { code, params });
 const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const root = (userData) => path.join(userData, 'custom-addons');
@@ -83,7 +89,7 @@ async function importFile(userData, file) {
       src = hits[0];
     }
     const fileName = path.basename(src).toLowerCase();
-    const name = slotOf(fileName);
+    const name = resolveAddonName(src) || slotOf(fileName);
     if (!name) throw fail('caErrName', 'Only renodx-dlss5.addon64, dlss5-nr.addon64 (lecram v11) or renodx-dlss.addon64 can be imported.');
     const head = Buffer.alloc(2);
     const fd = fs.openSync(src, 'r'); fs.readSync(fd, head, 0, 2, 0); fs.closeSync(fd);
@@ -155,4 +161,4 @@ function lecramHost(addon64) {
   return { addon64, hostExe, addon32: fs.existsSync(addon32) ? addon32 : null };
 }
 
-module.exports = { NAMES, VARIANTS, slotOf, importFile, knownHashes, root, defenderScan, lecramHost, HOST_DIR, HOST_EXE };
+module.exports = { NAMES, VARIANTS, slotOf, importFile, knownHashes, root, defenderScan, resolveAddonName, lecramHost, HOST_DIR, HOST_EXE };
