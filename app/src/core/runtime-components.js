@@ -17,7 +17,7 @@ const pe = require('./pe');
 const DGVOODOO = {
   version: '2.87.6',
   url: 'https://github.com/dege-diosg/dgVoodoo2/releases/download/2.87.6/dgVoodoo2_87_6.zip',
-  sha256: '5f9d86d85b381d25bfa93039128eb8255fd14c271c7491466b40a4ccc6138f4f'
+  sha256: '9afa493396feec7108f42a2d97661eef96bbaac5addf0dfb5cfbc3001cd76a0a'
 };
 
 async function ensureDgVoodoo(cacheRoot) {
