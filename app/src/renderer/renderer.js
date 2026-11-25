@@ -837,8 +837,9 @@ function wireNotes() {
 }
 
 function installOptions(d, pick, dir) {
-  const warning = (d.antiCheatWarning || pick?.antiCheatWarning)
-    ? `<div class="emu-note anti-cheat-warning" role="alert"><b>${t('antiCheatWarningTitle')}</b><span>${t('antiCheatWarning')}</span></div>` : '';
+  const warning = ((d.antiCheatWarning || pick?.antiCheatWarning)
+    ? `<div class="emu-note anti-cheat-warning" role="alert"><b>${t('antiCheatWarningTitle')}</b><span>${t('antiCheatWarning')}</span></div>` : '') +
+    (d.officialNr ? `<div class="emu-note" role="note"><b>${t('officialNrTitle')}</b><span>${t('officialNrHint')}</span></div>` : '');
   if (!pick) return warning;
   const api = selectedApi(pick, dir);
   const route = selectedRoute(d, pick, dir, api.api);
@@ -2014,7 +2015,7 @@ async function playGame(dir, button) {
 
 async function performGameAction(action, dir) {
   if (action === 'play') return playGame(dir);
-  if (!['details', 'open', 'copy', 'restore', 'scan', 'poster', 'hide'].includes(action)) return;
+  if (!['details', 'open', 'copy', 'restore', 'scan', 'poster', 'hide', 'remove'].includes(action)) return;
   const game = state.games.find(g => g.dir === dir);
   if (!game) return;
   if (!['open', 'copy'].includes(action) && (jobRunning || cardActionsBusy.size)) return;
@@ -2056,6 +2057,15 @@ async function performGameAction(action, dir) {
       state.games = state.games.filter(g => g.dir !== dir);
       renderGames();
       renderRecent();
+    } else if (action === 'remove') {
+      if (!await ask({
+        icon: 'hide', title: t('removeTitle'), body: t('removeConfirm', game.name),
+        confirm: t('menuRemove'), cancel: t('cancel')
+      })) return;
+      await window.lab.forget(dir);
+      state.games = state.games.filter(g => g.dir !== dir);
+      renderGames();
+      renderRecent();
     }
   } catch (error) {
     log(t('menuActionFailed', game.name, error.message));
@@ -2075,10 +2085,11 @@ const MENU_ICON = {
   scan: '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/>',
   poster: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/>',
   restore: '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>',
+  remove: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   hide: '<path d="m3 3 18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.4 5.2A9.6 9.6 0 0 1 12 5c5 0 9 4.5 9 7a11 11 0 0 1-2.4 3.6M6.3 6.4A11.6 11.6 0 0 0 3 12c0 2.5 4 7 9 7a9.7 9.7 0 0 0 3.3-.6"/>'
 };
 // Order, and where a rule falls between groups.
-const MENU_ITEMS = [['details'], ['open', 'copy'], ['scan', 'poster', 'restore'], ['hide']];
+const MENU_ITEMS = [['details'], ['open', 'copy'], ['scan', 'poster', 'restore'], ['hide', 'remove']];
 
 // Two letters when a game has no art, so the head is never an empty square.
 const menuInitials = name => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -2096,9 +2107,9 @@ function showGameMenu(game, position, { busy = false } = {}) {
     const menu = $('gameMenu');
     const labels = {
       details: t('menuDetails'), open: t('menuOpen'), copy: t('menuCopyPath'), scan: t('menuScan'),
-      poster: t('menuPoster'), restore: t('restore'), hide: t('menuHide')
+      poster: t('menuPoster'), restore: t('restore'), hide: t('menuHide'), remove: t('menuRemove')
     };
-    const disabled = new Set(busy ? ['scan', 'poster', 'restore', 'hide'] : []);
+    const disabled = new Set(busy ? ['scan', 'poster', 'restore', 'hide', 'remove'] : []);
     const hidden = new Set();
 
     const art = game.poster && game.poster.url;

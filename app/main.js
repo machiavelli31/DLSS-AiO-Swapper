@@ -310,7 +310,7 @@ const posterDir = () => path.join(app.getPath('userData'), 'posters');
 const keyFor = (dir) => crypto.createHash('sha1').update(path.resolve(dir).toLowerCase()).digest('hex').slice(0, 16);
 // Bump when scan metadata or detection changes so an old wrong result is not
 // kept forever merely because the folder was scanned by an earlier release.
-const SCAN_RULES = 7;
+const SCAN_RULES = 8;
 
 // One live object, not a fresh snapshot per call. Every handler used to parse
 // the file, hold that copy across an await, and write the whole thing back:
@@ -852,8 +852,8 @@ ipcMain.handle('scan', async (_event, dir) => {
       scannedAt: Date.now(),
       rules: SCAN_RULES
     };
-    state.scans[key] = result;
-    saveState(state);
+    // A card's scan still running when its game was removed must not write it back.
+    if (!forgotten.has(key)) { state.scans[key] = result; saveState(state); }
     return result;
   } catch (err) {
     return { ok: false, api: null, dx12: false, reason: 'error', error: err.message };
@@ -938,6 +938,31 @@ ipcMain.handle('set-poster', async (_event, dir) => {
 ipcMain.handle('hide', (_event, dir) => {
   const state = loadState();
   if (!state.hidden.includes(dir)) state.hidden.push(dir);
+  saveState(state);
+  return true;
+});
+
+// #19: forget a game entirely - out of the list and out of library.json
+// (added folder, cached scan, cover, recents, hidden entry). Nothing in the
+// game folder changes. A game a store library lists comes back on the next
+// rescan, which is what the person asked for; one added by hand does not.
+const forgotten = new Set();
+ipcMain.handle('forget', (_event, dir) => {
+  const state = loadState();
+  const wanted = path.resolve(String(dir)).toLowerCase();
+  const same = (item) => path.resolve(String(item)).toLowerCase() === wanted;
+  const key = keyFor(dir);
+  state.manual = (state.manual || []).filter((item) => !same(item));
+  state.hidden = (state.hidden || []).filter((item) => !same(item));
+  state.recents = (state.recents || []).filter((r) => !same(r.dir));
+  if (state.scans) delete state.scans[key];
+  if (state.art) delete state.art[key];
+  forgotten.add(key);
+  if (state.posters && state.posters[key]) {
+    const poster = state.posters[key];
+    delete state.posters[key];
+    try { if (path.dirname(poster) === posterDir()) fs.unlinkSync(poster); } catch { /* already gone */ }
+  }
   saveState(state);
   return true;
 });
@@ -1473,9 +1498,11 @@ ipcMain.handle('art-fetch', async (_event, dir, name, appid) => {
     record.hero = await grab(hit.heroUrl, '-hero.jpg');
     if (!record.hero && hit.heroFallbackUrl) record.hero = await grab(hit.heroFallbackUrl, '-hero.jpg');
 
-    state.art = state.art || {};
-    state.art[key] = record;
-    saveState(state);
+    if (!forgotten.has(key)) {
+      state.art = state.art || {};
+      state.art[key] = record;
+      saveState(state);
+    }
     return record;
   } catch (err) {
     return { error: err.message };
@@ -1560,7 +1587,14 @@ ipcMain.handle('details', async (_event, dir) => {
   const hasNativeDlss = installRoutes.nativeDlssPresent(scan);
   const files = [...scan.dlssFiles, ...scan.streamlineFiles]
     .map((f) => ({ rel: f.rel, name: f.name, version: f.version }));
+  // #7: a game that ships DLSS 5 itself (Hogwarts Legacy, Metro Redux ...)
+  // carries Streamline's DLSS-NR plugin (only official integrations have it),
+  // or its own nvngx_dlssnr.dll in a folder no install of ours touched.
+  const backupDir = (rel) => String(rel).split(/[\\/]/).slice(0, -1).some((part) => part.startsWith('_'));
+  const officialNr = scan.streamlineFiles.some((f) => /^sl\.dlss_nr\.dll$/i.test(f.name) && !backupDir(f.rel)) ||
+    (!scan.install && scan.dlssFiles.some((f) => /^nvngx_dlssnr\.dll$/i.test(f.name) && !backupDir(f.rel)));
   return {
+    officialNr,
     ok: Boolean(scan.chosen),
     reason: scan.chosen ? null : (scan.emptyReason || null),
     exe: scan.chosen ? scan.chosen.rel : null,

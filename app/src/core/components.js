@@ -574,9 +574,39 @@ function zipFromSetup(exe, dest) {
   fs.writeFileSync(dest, zip);
 }
 
+// #17: reshade.me is slow or unreachable from some countries. A copy of the
+// exact pinned setup that the person fetched in a browser (Downloads folder)
+// is used instead - it is only accepted byte-for-byte, so it is the same file.
+function localReShadeSetup() {
+  const home = process.env.USERPROFILE || require('os').homedir();
+  for (const dir of [path.join(home, 'Downloads'), path.join(home, 'Desktop')]) {
+    let names = [];
+    try { names = fs.readdirSync(dir); } catch { continue; }
+    for (const name of names) {
+      if (!/^ReShade_Setup_6\.8\.0_Addon(?:\s*\(\d+\))?\.exe$/i.test(name)) continue;
+      const file = path.join(dir, name);
+      try { if (sha256File(file) === RESHADE.sha256) return file; } catch { /* locked or gone */ }
+    }
+  }
+  return null;
+}
+
 async function downloadReShade(payloadDir, tmp, progress) {
   const exe = path.join(tmp, RESHADE.file);
-  await fetchVerified(RESHADE.url, RESHADE.sha256, exe, (g, t) => progress({ phase: 'download', received: g, total: t }), 'ReShade');
+  const local = localReShadeSetup();
+  if (local) {
+    fs.copyFileSync(local, exe);
+  } else {
+    let lastError = null;
+    for (let attempt = 0; attempt < 2 && !fs.existsSync(exe); attempt++) {
+      try { await fetchVerified(RESHADE.url, RESHADE.sha256, exe, (g, t) => progress({ phase: 'download', received: g, total: t }), 'ReShade'); }
+      catch (error) { lastError = error; if (error.code !== 'compErrDownload') throw error; }
+    }
+    if (!fs.existsSync(exe)) {
+      throw fail('compErrReshadeManual', { what: 'ReShade', reason: (lastError.params && lastError.params.reason) || 'error', file: RESHADE.file },
+        `Download failed (ReShade): reshade.me did not answer. Download ${RESHADE.file} in your browser into Downloads, then click Download again.`);
+    }
+  }
   progress({ phase: 'verify' });
   const zip = path.join(tmp, 'reshade.zip');
   zipFromSetup(exe, zip);

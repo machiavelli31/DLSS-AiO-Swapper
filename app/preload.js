@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('lab', {
   addGameByPath: (dir) => ipcRenderer.invoke('add-game-path', dir),
   setPoster: (dir) => ipcRenderer.invoke('set-poster', dir),
   hide: (dir) => ipcRenderer.invoke('hide', dir),
+  forget: (dir) => ipcRenderer.invoke('forget', dir),
   reset: () => ipcRenderer.invoke('reset'),
   open: (dir) => ipcRenderer.invoke('open', dir),
   openProject: (destination) => ipcRenderer.invoke('open-project', destination),

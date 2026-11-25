@@ -219,7 +219,10 @@ select option { background: var(--panel); color: var(--text); }
    the page, and it sits below the game sheet and every menu. */
 .section-head.games-heading {
   position: sticky;
-  top: 0;
+  /* #15: the view keeps 2px of padding above the bar, and cards scrolled
+     through that strip and through the see-through bar. It sits flush with the
+     top of the scroll area and is close to opaque. */
+  top: -2px;
   z-index: 5;
   /* Bleed over the view's own 6px side padding so no card shows past the edges
      of the bar as it scrolls underneath. */
@@ -227,8 +230,8 @@ select option { background: var(--panel); color: var(--text); }
   padding: 18px 10px 12px;
   /* The page behind is a gradient, so the bar borrows it rather than painting
      a colour that would only match in one place. */
-  background: color-mix(in srgb, var(--bg-3) 72%, transparent);
-  backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--bg-3) 95%, transparent);
+  backdrop-filter: blur(16px);
   border-bottom: 1px solid transparent;
   transition: border-color .2s ease;
 }

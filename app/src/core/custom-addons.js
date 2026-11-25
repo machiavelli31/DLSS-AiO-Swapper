@@ -29,7 +29,13 @@ const NAMES = Object.freeze({
 const VARIANTS = Object.freeze({
   'dlss5-nr.addon64': 'renodx-dlss5.addon64'
 });
-const slotOf = (name) => VARIANTS[name] || (Object.hasOwn(NAMES, name) ? name : null);
+// A browser that already has the file names the next download "dlss5-nr (2).addon64",
+// "dlss5-nr(9).addon64" or "renodx-dlss5 - Copy.addon64" (#1, #2, #3). Those are
+// the same add-on; it is imported under its real name.
+const canonical = (name) => String(name).toLowerCase()
+  .replace(/\s*-\s*(?:copy|kopie|copie|copia)(?:\s*\(\d+\))?(?=\.addon(?:32|64)$)/, '')
+  .replace(/\s*[\(\[]\d+[\)\]](?=\.addon(?:32|64)$)/, '');
+const slotOf = (name) => { const c = canonical(name); return VARIANTS[c] || (Object.hasOwn(NAMES, c) ? c : null); };
 
 const fail = (code, message, params = {}) => Object.assign(new Error(message), { code, params });
 const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -82,7 +88,7 @@ async function importFile(userData, file) {
       if (hits.length > 1) throw fail('caErrTwoAddons', 'The archive contains more than one add-on; import the one you want on its own.');
       src = hits[0];
     }
-    const fileName = path.basename(src).toLowerCase();
+    const fileName = canonical(path.basename(src));
     const name = slotOf(fileName);
     if (!name) throw fail('caErrName', 'Only renodx-dlss5.addon64, dlss5-nr.addon64 (lecram v11) or renodx-dlss.addon64 can be imported.');
     const head = Buffer.alloc(2);
@@ -155,4 +161,4 @@ function lecramHost(addon64) {
   return { addon64, hostExe, addon32: fs.existsSync(addon32) ? addon32 : null };
 }
 
-module.exports = { NAMES, VARIANTS, slotOf, importFile, knownHashes, root, defenderScan, lecramHost, HOST_DIR, HOST_EXE };
+module.exports = { NAMES, VARIANTS, slotOf, canonical, importFile, knownHashes, root, defenderScan, lecramHost, HOST_DIR, HOST_EXE };

@@ -275,7 +275,36 @@ function rdr2Renderer(files = rdr2SettingsFiles()) {
 // renderers are DX12 and Vulkan, so binary-string guessing is actively wrong
 // for this executable. Profiles are intentionally exact-name and expose every
 // renderer the user can select instead of pretending the first marker wins.
+// Capcom's RE Engine (Resident Evil 2/3/4/7/Village/Requiem, Dragon's Dogma 2,
+// Monster Hunter Wilds ...) imports d3d11.dll and dxgi.dll and loads Direct3D
+// 12 itself, so the imports say DirectX 11 (#18, #12). The game's own
+// config.ini beside the exe names the renderer it really runs:
+// [Render] Capability=DirectX12 (newer builds) or TargetPlatform=DirectX12.
+function reEngineRenderer(file) {
+  const dir = path.dirname(file);
+  let names = [];
+  try { names = fs.readdirSync(dir).filter((n) => /^(?:config|re\d*_config|.*_config)\.ini$/i.test(n)); } catch { return null; }
+  for (const name of names) {
+    let text;
+    try { text = fs.readFileSync(path.join(dir, name), 'utf8'); } catch { continue; }
+    const value = /^\s*(?:Capability|TargetPlatform)\s*=\s*DirectX\s*(11|12)\s*$/im.exec(text);
+    if (value) return { api: 'dxgi', label: 'DirectX ' + value[1] };
+  }
+  return null;
+}
+
 function gameApiProfile(file, renderer = rdr2Renderer) {
+  // Only where the imports alone would have said DirectX 11.
+  const imports = (() => { try { return pe.getImports(file); } catch { return []; } })();
+  if (imports.includes('d3d11.dll') && !imports.includes('d3d12.dll')) {
+    const re = reEngineRenderer(file);
+    if (re) {
+      return {
+        detected: { ...re, via: 'game-config' },
+        choices: [{ api: 'dxgi', label: 'DirectX 12' }, { api: 'dxgi', label: 'DirectX 11' }]
+      };
+    }
+  }
   if (/^rdr2\.exe$/i.test(path.basename(file))) {
     return {
       detected: { ...renderer(), via: 'game-profile' },
@@ -817,5 +846,5 @@ function scanSource(sourceDir) {
 module.exports = {
   scanGame, scanSource, walk, selectPrimaryDlss, xboxExecutables, playableRoleScore, inspectReShade,
   isVulkanWrapper, vulkanWrapperBeside,
-  gameApiProfile, rdr2Renderer, rdr2SettingsFiles
+  gameApiProfile, rdr2Renderer, rdr2SettingsFiles, reEngineRenderer
 };
